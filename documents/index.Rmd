@@ -1,0 +1,45 @@
+---
+output: 
+  html_document: 
+    theme: spacelab
+---
+
+#**Basic statistics**
+
+**June 6-7, 2016**
+
+**Ewan Dunbar, Laboratoire des Sciences Cognitives et Psycholinguistique**
+
+e m d   @   u m d  .  e d u
+
+This two day course will cover the basics of applied statistics.
+By the end, you will understand what the standard regression and
+ANOVA models are doing, including logistic and Poisson regression and mixed
+effects models. You will know how to interpret all of the output, 
+and will be able to transfer this knowledge from the
+output of one statistical package to another. You will know roughly
+when each of these techniques is appropriate, and you will know how
+to recognize clear signs that they are inappropriate.
+
+####**Software**
+We will use SPSS. It may be helpful to come with a laptop with SPSS
+23 or higher installed, but it is not strictly necessary. 
+
+####**Time and place**
+TBA
+
+###**Topics**
+
+[Model evaluation](model_evaluation.html)
+
+[Regression with categorical predictors](regression_categorical.html)
+
+[Regression and ANOVA](regression_anova.html)
+
+[Logistic and Poisson regression](logistic_regression.html)
+
+[Random effects](random_effects.html)
+
+[Automation](automation.html)
+
+[Power and model building](power.html)

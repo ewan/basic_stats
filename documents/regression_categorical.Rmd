@@ -1,0 +1,17 @@
+---
+output: 
+  html_document: 
+    theme: spacelab
+---
+
+#**Regression with categorical predictors**
+
+**Basic stats: June 6-7, 2016**
+
+**Ewan Dunbar, Laboratoire des Sciences Cognitives et Psycholinguistique**
+
+e m d   @   u m d  .  e d u
+
+[Back to main course page](index.html)
+
+No content here yet.
