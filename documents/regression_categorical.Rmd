@@ -26,6 +26,8 @@ This section is about linear models.
 
 [Link to the full version of the text rating data (password protected)](data/parody_q1.zsav)
 
+[Link to the implicatures experiment 1 data (password protected)](data/implicatures_exp1.zsav)
+
 ##Back to the text rating data
 
 ```{r read-ratings-multi, include=F}
