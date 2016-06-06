@@ -4,7 +4,26 @@ output:
     theme: spacelab
 ---
 
-#**Model evaluation**
+```{r setup, include=F}
+library(moments)
+library(reshape2)
+library(plyr)
+library(ggplot2)
+library(dplyr)
+library(emdplot)
+library(rocauc)
+library(doParallel)
+registerDoParallel()
+source("src/gmm.R")
+source("src/stats.R")
+options(scipen=1000, digits=2)
+secondary_palette <- c(Different=emd_colours()$lightest$blue,
+                       Same=emd_colours()$darkest$purple)
+tertiary_palette <- c("False positive rate"=emd_colours()$dark$maroon,
+                      "True positive rate"=emd_colours()$darkest$grey)
+```
+
+#**Statistical tests**
 
 **Basic stats: June 6-7, 2016**
 
@@ -14,4 +33,432 @@ e m d   @   u m d  .  e d u
 
 [Back to main course page](index.html)
 
-No content here yet.
+This section is about the basics of inferential statistics.
+
+[Link to the interactive document](http://ewan.shinyapps.io/model_evaluation/)
+
+[Link to the simulated text rating data](data/text_ratings_simple.zsav)
+[Link to the two group text rating data (password protected)](data/parody_2groups.zsav)
+
+##A fake experiment
+
+I was sent some data from a study where subjects were given several different genres of texts to rate in different languages in order to understand how those genres differed within and between languages. Each observation was two different ratings, each between -10 and 10. For each of the two types of ratings, the numbers above zero were supposed to be used in case the text was more one way than another - for example, +10 could have represented "funny" and -10 "sarcastic."
+
+This study is complicated in a few different ways, so I've generated some fake data to represent a simplified, fake version of a similar experiment. We're going to start by smoothing over a lot of these details. Imagine the following scenario: we have one subject, or perhaps one group of subjects who we already know is perfectly consistent amongst each other. We have two types of text and a question where we ask them to rate those texts. They can rate the texts with any number they want - negative, positive, fractional, or otherwise - and it's some sort of question that we expect will be generally different for the two different kinds of texts.
+
+We'd like to see whether we're really right that the question we asked was one that would discriminate between the two different kinds of texts. There might be different reasons for this. We might not know if our question is any good. Or we might have already normed it to establish that it works for some easy cases, and we want to use it to get information about some new texts - a very generic scenario.
+
+```{r read-ratings-simple, include=F}
+tr_simple <- read.csv("data/text_ratings/text_ratings_simple.csv")
+n_all <- nrow(tr_simple)
+n_type1 <- nrow(dplyr::filter(tr_simple, text_type == "Type 1"))
+n_type2 <- nrow(dplyr::filter(tr_simple, text_type == "Type 2"))
+tr_2groups <- read.csv("data/text_ratings/parody_2groups.csv")
+n_partype1 <- nrow(dplyr::filter(tr_2groups, text_type == "Type 1"))
+n_partype2 <- nrow(dplyr::filter(tr_2groups, text_type == "Type 2"))
+```
+
+I have `r n_all` observations total in this fake experiment: `r n_type1` ratings of Type 1 texts and `r n_type2` ratings of Type 2 texts. Here is a histogram of the two sets of ratings.
+
+```{r plot-ratings-simple, echo=F}
+with(tr_simple,
+     hist_overlapping(rating, text_type, "Rating", "Text type",
+                      line_width=1)) + 
+  emd_theme(text_size=12)
+```
+
+##A theory and an alternate theory
+
+Whatever the reason, we have a binary question - are the two types of texts different in their ratings or not. If each the two kinds of texts elicited the same rating every time, this would be an easy question; either the two ratings are exactly the same or they aren't. We don't have two numbers as our observations - we have two **types** of observations. The fact that the world is messy like this is the only reason we need statistics.
+
+Our binary question corresponds to two competing theories (just meaning "concept of how the world might be" - the terms "model" and "hypothesis" are theoretically loaded in statistics).
+
+1. Type 1 and Type 2 elicit the same kinds of ratings
+2. Type 1 and Type 2 elicit systematically different kinds of ratings
+
+At this point, you expect me to say that, in these cases, we use a t-test and show you, in case you forgot, how to run a t-test. That's pretty much right (although in fact a t-test rests on a more specific notion of "same" than what's  implied here). But that's not what we're here for right now. We're here to remind ourselves of the fundamentals of statistics.
+
+Though, to get it out of the way, let's show a t-test in SPSS.
+
+![SPSS t-test.](images/spss_t_test.png)
+
+The point of this lesson is to break down what the pieces of this are, show how they form the basic cast of characters for everything you'll ever do in statistics.
+
+##Predictions of the two theories
+
+```{r do-fake-expts, include=F, cache=T}
+n_fake_expts <- 500
+seed_fake_expts <- 1
+fake_samples <- sample_2groups_samediff(n_fake_expts, n_type1, n_type2,
+                                        gmm, sample_gmm, seed=seed_fake_expts)
+fs_stats <- ddply(fake_samples, .(theory, iter), summarize,
+                  sd=sd(x), sk=skewness(x), ku=kurtosis(x),
+                  amd=absmeandiff_by(x, group),
+                  amds=absmeandiff_sd_by(x, group),
+                  mds=meandiff_sd_by(x, group),
+                  skld=skld_by(x, group))
+fake_samples_small <- sample_2groups_samediff(n_fake_expts, 6, 6,
+                                        gmm, sample_gmm, seed=seed_fake_expts)
+fs_stats_small <- ddply(fake_samples_small, .(theory, iter), summarize,
+                  amds=absmeandiff_sd_by(x, group))
+fake_samples_norm <- sample_2groups_fromsample(n_fake_expts, 
+                                              list(x=tr_simple$rating,
+                                              group=tr_simple$text_type),
+                                              gauss_matchvar,
+                                              gauss_pair_matchvar,
+                                              sample_gauss,
+                                              seed=seed_fake_expts)
+fs_stats_norm <- ddply(fake_samples_norm, .(theory, iter), summarize,
+                  amds=absmeandiff_sd_by(x, group))
+fake_samples_norm_a <- sample_2groups_fromsample(n_fake_expts, 
+                                              list(x=tr_2groups$rating,
+                                              group=tr_2groups$text_type),
+                                              gauss_matchvar,
+                                              gauss_pair_matchvar,
+                                              sample_gauss,
+                                              seed=seed_fake_expts)
+fs_stats_norm_a <- ddply(fake_samples_norm_a, .(theory, iter), summarize,
+                  amds=absmeandiff_sd_by(x, group))
+
+fake_samples_dns_a <- sample_2groups_fromsample(n_fake_expts, 
+                                              list(x=tr_2groups$rating,
+                                              group=tr_2groups$text_type),
+                                              dist_matchdns,
+                                              dist_pair_matchdns,
+                                              sample_dns,
+                                              seed=seed_fake_expts)
+fs_stats_dns_a <- ddply(fake_samples_dns_a, .(theory, iter), summarize,
+                  amds=absmeandiff_sd_by(x, group))
+
+fake_samples_bootstrap_a <- sample_2groups_fromsample(n_fake_expts, 
+                                              list(x=tr_2groups$rating,
+                                              group=tr_2groups$text_type),
+                                              dist_boot,
+                                              dist_pair_boot,
+                                              sample_boot,
+                                              seed=seed_fake_expts)
+fs_stats_bootstrap_a <- ddply(fake_samples_bootstrap_a, .(theory, iter), summarize,
+                  amds=absmeandiff_sd_by(x, group))
+```
+
+Let's look at the predictions of these two incredibly vague theories about what this looks like. Let's sample a few times - i.e., do, let's say, `r n_fake_expts` fake experiments - under the first theory, which is that the two kinds of texts yield ratings that are not different in any systematic way. Here's a few such experiments:
+
+```{r example-fake-expts-th1, echo=F, fig.width=10, fig.height=10}
+fs_same <- dplyr::filter(fs_stats, theory=="Same")
+iter_max_sd <- with(fs_same, iter[which.max(sd)])
+iter_max_sk <- with(fs_same, iter[which.min(sk)]) 
+iter_max_ku <- with(fs_same, iter[which.min(ku)]) 
+iter_max_amd <- with(fs_same, iter[which.max(amd)]) 
+iters_to_show <- c(iter_max_sd, iter_max_sk, iter_max_ku, iter_max_amd) 
+example_same <- dplyr::filter(fake_samples, theory=="Same", iter %in% iters_to_show)
+example_same$iter <- factor(example_same$iter, levels=iters_to_show)
+with(example_same, hist_overlapping(x, group, "x", "Group", 
+                      additional_vars=data.frame(iter=iter),
+                      line_width=1)) + 
+  facet_wrap(~ iter, scales="free") +
+  emd_theme(text_size=12)
+```
+
+These theories are so vague that they're actually hard (maybe impossible) to define. They don't specify anything at all about how subjects will assign the ratings! I've used a complicated but very wide open set of possible behaviors here (a lot more generic than the assumptions of a t-test). As you can see, it allows the subjects to span an extremely wide range in their ratings (but doesn't require it) and implies that the ratings will tend to have a single peak (but they won't necessarily).
+The exact way this is defined isn't too important, but one thing to notice is that the scale (the maximum and minimum rating) can vary a lot from one experiment to the next.
+
+Now let's look at some experiments that we would predict to happen under the equally vague Theory 2 - that the ratings are in some way different. 
+
+```{r example-fake-expts-th2, echo=F, fig.width=10, fig.height=10}
+fs_diff <- dplyr::filter(fs_stats, theory=="Different")
+fs_diff$rank_amds <- with(fs_diff, rank(amds))
+fs_diff$rank_amd <- with(fs_diff, rank(amd))
+fs_diff$amd_vs_amds <- with(fs_diff, rank_amd/rank_amds)
+iter_max_amds <- with(fs_diff, iter[which.max(amds)]) 
+iter_min_amds <- with(fs_diff, iter[which.min(amds)]) 
+iter_min_amds_amd <- with(fs_diff, iter[which.max(rank_amd/rank_amds)]) 
+amd_m <- fs_diff[fs_diff$iter==iter_min_amds_amd,"amd"]
+fs_diff$diff_from_amdm <- with(fs_diff, amd-amd_m)
+iter_closest_amdm <- with(fs_diff, iter[which.max(rank_amds/rank(diff_from_amdm))]) 
+iters_to_show <- c(iter_max_amds, iter_min_amds, iter_min_amds_amd, iter_closest_amdm) 
+example_diff <- dplyr::filter(fake_samples, theory=="Different",
+                              iter %in% iters_to_show)
+example_diff$iter <- factor(example_diff$iter, levels=iters_to_show)
+with(example_diff, hist_overlapping(x, group, "x", "Group", 
+                      additional_vars=data.frame(iter=iter),
+                      line_width=1)) + 
+  facet_wrap(~ iter, scales="free") +
+  emd_theme(text_size=12)
+```
+
+##Tests
+
+In stats we mostly rely on empirical criteria for comparing theories. Now that we have a sense for how these two theories compare in terms of their predictions, how do they compare with regard to **how well** they predict the data that we have?
+
+The procedure for asking binary questions like this is the following:
+
+1. Come up with a single number that somehow summarizes the data set in a way that's relevant to the two theories: a **test statistic**
+2. Look at the predictions for the test statistic under the two theories
+3. Find a way of making a decision (or deciding that we can't make a decision) about our test statistic for our data, based on the predictions under the two theories
+
+So let's take an obvious and simple test statistic. If these two kinds of texts are rated systematically differently then the mean score for the two will probably be different, right? Not necessarily (for reasons we'll review in a bit), but it's a concrete place to start. For any set of observations like ours, with `r n_type1` real valued observations making up one group and `r n_type2` real valued observations making up another, we can define the following test statistic:
+
+- **Take the mean of group 1**
+- **Take the mean of group 2**
+- **Subtract one from the other**
+- **Take the absolute value** (because we never asked about which one was to the right or to the left)
+
+For the last set of plots above these numbers are (rounded
+to two decimals)
+**`r fs_diff$amd[fs_diff$iter == iter_max_amds]`**
+(upper left),
+**`r fs_diff$amd[fs_diff$iter == iter_min_amds]`**
+(upper right),
+**`r fs_diff$amd[fs_diff$iter == iter_min_amds_amd]`**
+(lower left), and
+**`r fs_diff$amd[fs_diff$iter == iter_closest_amdm]`**
+(lower right),
+for example.
+
+We would certainly expect these numbers to tend to be larger in the world of theory 2 than theory 1, and that's the case. 
+
+```{r plot-amd-th1-2, echo=F}
+with(fs_stats,
+     hist_overlapping(amd, theory, "Absolute difference in means", "Theory",
+                      line_width=1, colour_palette = secondary_palette)) + 
+  emd_theme(text_size=12)
+```
+
+If you look back at the graphs you'll see there's something a bit weird about this. The lower left graph and the lower right graph look like they have similar overlap, but the first graph has an absolute mean difference larger than that of the second. That's because the scale of the ratings overall is just larger. That doesn't make sense to include, so we can correct for that by adding a step:
+
+- **Divide by the pooled standard deviation**
+
+Now for the last set of plots above the numbers are (rounded to two decimals)
+**`r fs_diff$amds[fs_diff$iter == iter_max_amds]`**
+(upper left),
+**`r fs_diff$amds[fs_diff$iter == iter_min_amds]`**
+(upper right),
+**`r fs_diff$amds[fs_diff$iter == iter_min_amds_amd]`**
+(lower left), and
+**`r fs_diff$amds[fs_diff$iter == iter_closest_amdm]`**
+(lower right),
+for example.
+
+With this somewhat more sensible measure in hand (it changes the picture a bit) we can see where our data falls:
+
+```{r plot-amds-th1-2, echo=F}
+with(fs_stats,
+     hist_overlapping(amds, theory, "# of s.d. difference in means", "Theory",
+                      line_width=1, colour_palette=secondary_palette)) + 
+  geom_vline(aes(xintercept=with(tr_simple, absmeandiff_sd_by(rating, text_type))),
+             lwd=1.5) +
+  emd_theme(text_size=12)
+```
+
+It seems reasonable to say that our data is more consistent with theory 2 than theory 1, based on this graph. It also seems reasonable to say we've come up with a basis for a general test to see whether two sets of observations have means that are more or less consistent with a world in which they're systematically different (where the limiting factor is our general definition of how sets of observations can be generated systematically).
+
+Notice that, because we've only concerned ourselves with a difference in the mean between the two groups (which I did largely because it's intuitive) there are some obvious cases that are most definitely systematically different, but in a way a test like this could never detect: they have different variances, as in the graph on the upper right. We have successfully constructed a test that ignores this kind of difference.
+
+##Imperfect tests
+
+```{r decision-stats, echo=F}
+p_stats <- with(fs_stats,positive_prediction_stats_linear_classifier_by_rank(amds, factor(theory, levels=c("Same", "Different")),
+                                     extend=F))
+p_stats_melted <- melt(p_stats, .(crit), variable.name="stat")
+p_stats_melted$stat <- factor(p_stats_melted$stat)
+levels(p_stats_melted$stat) <- c("True positive rate", "False positive rate")
+decision_0.05_fp <- p_stats$crit[which.min(abs(p_stats$fpr-0.05))]
+
+p_stats_small <- with(fs_stats_small,
+                      positive_prediction_stats_linear_classifier_by_rank(amds, factor(theory, levels=c("Same", "Different")),
+                                     extend=F))
+p_stats_small_melted <- melt(p_stats_small, .(crit), variable.name="stat")
+p_stats_small_melted$stat <- factor(p_stats_small_melted$stat)
+levels(p_stats_small_melted$stat) <- c("True positive rate", "False positive rate")
+decision_0.05_fp_small <- p_stats_small$crit[which.min(abs(p_stats_small$fpr-0.05))]
+
+p_stats_norm <- with(fs_stats_norm,
+                      positive_prediction_stats_linear_classifier_by_rank(amds, factor(theory, levels=c("Same", "Different")),
+                                     extend=F))
+p_stats_norm_melted <- melt(p_stats_norm, .(crit), variable.name="stat")
+p_stats_norm_melted$stat <- factor(p_stats_norm_melted$stat)
+levels(p_stats_norm_melted$stat) <- c("True positive rate", "False positive rate")
+decision_0.05_fp_norm <- p_stats_norm$crit[which.min(abs(p_stats_norm$fpr-0.05))]
+
+
+p_stats_norm_a <- with(fs_stats_norm_a,
+                      positive_prediction_stats_linear_classifier_by_rank(amds, factor(theory, levels=c("Same", "Different")),
+                                     extend=F))
+p_stats_norm_a_melted <- melt(p_stats_norm_a, .(crit), variable.name="stat")
+p_stats_norm_a_melted$stat <- factor(p_stats_norm_a_melted$stat)
+levels(p_stats_norm_a_melted$stat) <- c("True positive rate", "False positive rate")
+decision_0.05_fp_norm_a <- p_stats_norm_a$crit[which.min(abs(p_stats_norm_a$fpr-0.05))]
+
+p_stats_dns_a <- with(fs_stats_dns_a,
+                      positive_prediction_stats_linear_classifier_by_rank(amds, factor(theory, levels=c("Same", "Different")),
+                                     extend=F))
+p_stats_dns_a_melted <- melt(p_stats_dns_a, .(crit), variable.name="stat")
+p_stats_dns_a_melted$stat <- factor(p_stats_dns_a_melted$stat)
+levels(p_stats_dns_a_melted$stat) <- c("True positive rate", "False positive rate")
+decision_0.05_fp_dns_a <- p_stats_dns_a$crit[which.min(abs(p_stats_dns_a$fpr-0.05))]
+
+p_stats_boot <- with(fs_stats_bootstrap_a,
+                      positive_prediction_stats_linear_classifier_by_rank(amds, factor(theory, levels=c("Same", "Different")),
+                                     extend=F))
+p_stats_boot_melted <- melt(p_stats_boot, .(crit), variable.name="stat")
+p_stats_boot_melted$stat <- factor(p_stats_boot_melted$stat)
+levels(p_stats_boot_melted$stat) <- c("True positive rate", "False positive rate")
+decision_0.05_fp_boot <- p_stats_boot$crit[which.min(abs(p_stats_boot$fpr-0.05))]
+```
+
+We've reached step 3:
+
+1. Come up with a single number that somehow summarizes the data set in a way that's relevant to the two theories: a test statistic
+2. Look at the predictions for the test statistic under the two theories
+3. **Find a way of making a decision (or deciding that we can't make a decision) about our test statistic for our data, based on the predictions under the two theories**
+
+Here's an idea for how we might do this: pick as the decision point the point on the graph where it's more likely that our test statistic came from "different" than from "same" - here that would correspond to about 0.16. Is that a good way to make a decision?
+
+Well, we can actually check. There are infinitely many possible decision criteria. Let's see how well each of them do.
+
+```{r tp-fp, echo=F}
+ggplot(p_stats_melted, aes(x=crit, colour=stat, y=value)) +
+  scale_colour_manual(values=tertiary_palette, name="Score") +
+  geom_line(lwd=2) +
+  xlab("Decision criterion") +
+  emd_theme(text_size=12) 
+```
+
+Here we (arbitrarily) call "positive" the experiments that were generated under Theory 2, that there **is** a difference; and "negative" those that were generated under Theory 1, that there's not. "True positive rate" is the proportion of actual Theory 2 cases correctly classified, and "false positive rate" is the proportion of Theory 1 (no difference) cases misclassified as Theory 2.
+
+The decision criterion we came up with on the basis of the graph was 0.16, which will lead to a certain true positive rate and a certain false positive rate. We can show that in There's also a particular decision criterion that will yield a false positive rate of 0.05; it will have a certain, limited true positive rate.
+
+```{r tp-fp-with-lines, echo=F}
+ggplot(p_stats_melted, aes(x=crit, colour=stat, y=value)) +
+  scale_colour_manual(values=tertiary_palette, name="Score") +
+  geom_line(lwd=2) +
+  geom_vline(xintercept=0.16, lwd=2, lty="dotted") + 
+  geom_vline(xintercept=decision_0.05_fp, lwd=2, lty="dashed") + 
+  geom_vline(xintercept=with(tr_simple, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  xlab("Decision criterion") +
+  emd_theme(text_size=12) 
+```
+
+False positive rate and true positive rate have another name in statistical testing: **type I error rate** and **power.**
+
+##Setting 
+
+We'll go back to the t-test in just a minute.
+
+Let's stop to remember that every experiment is different, and that we created our fake experiments based on the real one (well, the "real" one) that we were looking at. One thing that we adjusted to fit our experiment was the number of observations in each group. If we fiddle with that we'll see that the predictions change. Let's try just 6 observations in each group. The dashed line is a 0.05 false positive rate. The dotted line is where the actual test statistic from this experiment falls (though, granted, this is obviously not the right test to be using for this experiment).
+
+```{r plot-amds-small, echo=F}
+with(fs_stats_small,
+     hist_overlapping(amds, theory, "# of s.d. difference in means", "Theory",
+                      line_width=1, colour_palette=secondary_palette)) + 
+  geom_vline(xintercept=decision_0.05_fp_small, lwd=1.5, lty="dashed") +
+  geom_vline(xintercept=with(tr_simple, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  emd_theme(text_size=12)
+```
+
+```{r tp-fp-small, echo=F}
+ggplot(p_stats_small_melted, aes(x=crit, colour=stat, y=value)) +
+  scale_colour_manual(values=tertiary_palette, name="Score") +
+  geom_line(lwd=2) +
+  geom_vline(xintercept=decision_0.05_fp_small, lwd=2, lty="dashed") + 
+  geom_vline(xintercept=with(tr_simple, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  xlab("Decision criterion") +
+  emd_theme(text_size=12) 
+```
+
+Now let's make our theories a good deal more constrained to match our experiment (the one we created at the start). Let's assume that the two kinds of text ratings are both normally distributed with the same variance (that, it turns out, is more or less what I did to create this simplified experiment). Let's assume that in our fake comparison experiments this always has to be the case, and the two groups will always have the same variance as what we have in our data. And furthermore, we'll assume that, in the "different" case, the difference between the two groups is always the exact same as what it was in our data.
+
+
+```{r plot-amds-norm, echo=F}
+with(fs_stats_norm,
+     hist_overlapping(amds, theory, "# of s.d. difference in means", "Theory",
+                      line_width=1, colour_palette=secondary_palette)) + 
+  geom_vline(xintercept=decision_0.05_fp_norm, lwd=1.5, lty="dashed") +
+  geom_vline(xintercept=with(tr_simple, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  emd_theme(text_size=12)
+```
+
+```{r tp-fp-norm, echo=F}
+ggplot(p_stats_norm_melted, aes(x=crit, colour=stat, y=value)) +
+  scale_colour_manual(values=tertiary_palette, name="Score") +
+  geom_line(lwd=2) +
+  geom_vline(xintercept=decision_0.05_fp_norm, lwd=2, lty="dashed") + 
+  geom_vline(xintercept=with(tr_simple, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  xlab("Decision criterion") +
+  emd_theme(text_size=12) 
+```
+
+This is a pretty standard set of assumptions to make (we will see it from now on almost all the time), but it is (really very much) only out of convenience that it's so pervasive. In particular, the assumption of normality can be violated in ways that make the test invalid, as can the assumption that the variance doesn't change as a function of the condition (predictors).
+
+Now let's have a look at the real data that we based our original simplified experiment on. We can see that it's not quite the same as the simplified version we made. For one thing, it only ranges from -10 to 10, and the distribution isn't quite as nice and smooth (and, in fact, I'd doubled the number of data points in each group).
+
+```{r plot-ratings-actual, echo=F}
+with(tr_2groups,
+     hist_overlapping(rating, text_type, "Rating", "Text type",
+                      line_width=1)) + 
+  emd_theme(text_size=12)
+```
+
+Notice that they don't match the very restrictive assumptions we've made about **either** of the two theories. Now, we can of course, generate predictions just the same, on the basis of this data set.
+
+```{r plot-amds-norm-a, echo=F}
+with(fs_stats_norm_a,
+     hist_overlapping(amds, theory, "# of s.d. difference in means", "Theory",
+                      line_width=1, colour_palette=secondary_palette)) + 
+  geom_vline(xintercept=decision_0.05_fp_norm_a, lwd=1.5, lty="dashed") +
+  geom_vline(xintercept=with(tr_2groups, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  coord_cartesian(xlim=c(0, 0.85)) +
+  emd_theme(text_size=12)
+```
+
+```{r tp-fp-norm-a, echo=F}
+ggplot(p_stats_norm_a_melted, aes(x=crit, colour=stat, y=value)) +
+  scale_colour_manual(values=tertiary_palette, name="Score") +
+  geom_line(lwd=2) +
+  geom_vline(xintercept=decision_0.05_fp_norm_a, lwd=2, lty="dashed") + 
+  geom_vline(xintercept=with(tr_2groups, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  xlab("Decision criterion") +
+  coord_cartesian(xlim=c(0, 0.85)) +
+  emd_theme(text_size=12) 
+```
+
+Now - let's look at some experiments where we supposed, under both theories, that we had data that we required to be very, very similar to this data set (similar to a bootstrap, but with a bit of smoothing).
+
+```{r plot-amds-dns-a, echo=F}
+with(fs_stats_bootstrap_a,
+     hist_overlapping(amds, theory, "# of s.d. difference in means", "Theory",
+                      line_width=1, colour_palette=secondary_palette)) + 
+  geom_vline(xintercept=decision_0.05_fp_dns_a, lwd=1.5, lty="dashed") +
+  geom_vline(xintercept=with(tr_2groups, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  coord_cartesian(xlim=c(0, 0.85)) +
+  emd_theme(text_size=12)
+```
+
+```{r tp-fp-dns-a, echo=F}
+ggplot(p_stats_boot_melted, aes(x=crit, colour=stat, y=value)) +
+  scale_colour_manual(values=tertiary_palette, name="Score") +
+  geom_line(lwd=2) +
+  geom_vline(xintercept=decision_0.05_fp_boot, lwd=2, lty="dashed") + 
+  geom_vline(xintercept=with(tr_2groups, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  xlab("Decision criterion") +
+  coord_cartesian(xlim=c(0, 0.85)) +
+  emd_theme(text_size=12) 
+```
+
+
+More to the point: **the false positive rate of a test is only right if the assumptions about the data are right.**
+
+##Significance tests
+
+A significance test is just a test where - at our own risk - we evaluate only one theory, attempting to falsify it. There is no way of calculating a true positive rate, because there is no fixed model of what we're looking for, only what we're not looking for (although if you come up with one, you can certainly add it in and calculate power).
+
+```{r significance-test, echo=F}
+ggplot(dplyr::filter(p_stats_norm_melted, stat=="False positive rate"), aes(x=crit, colour=stat, y=value)) +
+  scale_colour_manual(values=tertiary_palette, name="Score") +
+  geom_line(lwd=2) +
+  geom_vline(xintercept=decision_0.05_fp_norm, lwd=2, lty="dashed") + 
+  geom_vline(xintercept=with(tr_simple, absmeandiff_sd_by(rating, text_type)), lwd=2) + 
+  xlab("Decision criterion") +
+  emd_theme(text_size=12) 
+```
+

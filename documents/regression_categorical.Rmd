@@ -4,7 +4,13 @@ output:
     theme: spacelab
 ---
 
-#**Regression with categorical predictors**
+```{r setup, include=F}
+library(emdplot)
+options(scipen=1000, digits=2)
+```
+
+
+#**Linear models**
 
 **Basic stats: June 6-7, 2016**
 
@@ -14,4 +20,120 @@ e m d   @   u m d  .  e d u
 
 [Back to main course page](index.html)
 
-No content here yet.
+This section is about linear models.
+
+[Link to the 2x2 version of the text rating data (password protected)](data/parody_q1_2x2.zsav)
+[Link to the full version of the text rating data (password protected)](data/parody_q1.zsav)
+
+##Back to the text rating data
+
+```{r read-ratings-multi, include=F}
+parody <- read.csv("data/text_ratings/parody_q1.csv")
+parody_2x2 <- read.csv("data/text_ratings/parody_q1_2x2.csv")
+```
+
+Let's look at a bigger subset of the text rating data: let's look at a 2x2 subset of English and Spanish, Type 1 and Type 2 texts. I've done a rank inverse normal transform on the data so that it's no longer bounded on -10 and 10; we'll work with it like that from now on.
+
+
+```{r plot-2x2, echo=F}
+with(parody_2x2,
+     hist_overlapping(rating_zr, var_measure_name = "Rating",
+                      additional_vars = data.frame(language=language, text_type=text_type), 
+                      line_width=1)) +
+  facet_grid(language ~ text_type) +
+  emd_theme(text_size=12)
+```
+
+##A super simple model of this
+
+When we were working with two groups, we compared two theories: either the observations in the two groups are different or they're not. Now that we have a bit more complex data, we have to build a little bit more articulated framework to even formulate such competing theories.
+
+Our data has two predictor variables, each of which are binary. Here is a super simple model for data over which we're going to predicate our questions. Let's suppose that:
+
+1. For every possible combination of values of our two predictor variables, the response variable is normally distributed; the standard deviation is always the same
+2. The different conditions therefore differ only in the where the center of their underlying distribution is:
+    a. Observations overall: **β0**
+    b.
+        i. Type 1: **β0 + β_Text_type**
+        ii. Type 2: **β0 - β_Text_type** 
+    c.
+        i. English: **β0 + β_Language**
+        ii. Spanish: **β0 - β_Language**
+    d. 
+        i. English Type 1: **β0 + β_Language + β_Text_type + β_Interaction**
+        ii. English Type 2: **β0 + β_Language - β_Text_type - β_Interaction**
+        iii. Spanish Type 1: **β0 - β_Language + β_Text_type - β_Interaction**
+        iiii. Spanish Type 2: **β0 - β_Language - β_Text_type + β_Interaction**
+        
+Here's a barplot that shows what the various cases might look like under one instance of that model.
+
+```{r barplot-hypothetical-2x2, echo=F, warning=F, fig.width=10, fig.height=10}
+linear_2x2_sumcode_barplot(0.03582, -0.27276, -0.02685, -0.02968,
+                           x2="Language", x2A = "English", x2B = "Spanish",
+                           x1="Text type", x1A = "Type 1", x1B = "Type 2") + 
+  emd_theme(text_size=15) +
+  theme(strip.text.x = element_text(angle=90, vjust = 0))
+```
+
+This is a model that allows us to construct statistical tests that allow us to ask more than one different question:
+
+1. Are the ratings overall different from zero (i.e., is there a general tendency when answering this question)?
+2. Is there a difference between the ratings for the two text types?
+3. Is there a difference between the ratings for the two languages?
+4. Is there a difference between the groups above and beyond what's explained by these two main effects?
+ 
+These are easy to set up as contrasting theories, associated with test statistics.  Let's look at an example of one of these - question 2.
+
+![SPSS test for a regression coefficient.](images/spss_deviation_contr_test.png)
+
+Let's break this down. SPSS has **estimated parameters.** That is, it's gone and done a search for four numbers - the four β values above - that are measurably the best possible values for this data set, for this model (they minimize the error in a clearly defined sense that we won't talk about here). So now we've got two theories to compare: one in which β\_Text\_type has this particular value, versus one where it's zero (thus, effectively not included in the model), but the other coefficients are all the same.
+
+The test statistic turns out to be a t-statistic as before, because the predictions of the theory that it's zero (which define the "false positive rate" for claiming that it's not zero), as before, turn out to predict a t distribution of a simple transformation of the coefficient (dividing by the standard error).
+
+##Contrasts
+
+The fact is, here we are working with predictor variables that are categorical variables. And when we have categorical variables, we need to convert them into numbers in order to do any work with them statistically (although you might not always see this happen, underneath the hood this is almost always what's going on when you work with categorical variables).
+
+There are many, many ways to do this. (Infinitely many.) I've shown you one that's useful, because it allows us to interpret **β0** as the grand mean.
+
+- Text type: 
+    a. Type 1 = 1
+    b. Type 2 = -1
+- Language:
+    a. English = 1
+    b. Spanish = -1
+
+But it's always the case that the way interaction terms in linear models work is this:
+
+- Text type ⨉ Language:
+    a. Type 1 ⨉ English = 1⨉1 = 1
+    b. Type 2 ⨉ English = -1⨉1 = -1
+    c. Type 1 ⨉ Spanish = 1⨉-1 = -1
+    d. Type 2 ⨉ Spanish = -1⨉-1 = -1
+   
+This model is extremely useful because it's easy to interpret.  To get SPSS to fit it and include all the terms in the output is nonetheless not entirely trivial (it's not the default way of setting contrasts in modern versions of SPSS). If you do it by hand, here's what you get:
+
+![SPSS parameter estimates.](images/spss_parameter_estimates.png)
+
+By default, if you let SPSS convert categorical variables it will want to do something called a "dummy coding" or "baseline coding" or "treatment coding":
+
+- Text type: 
+    a. Type 1 = 1
+    b. Type 2 = 0
+- Language:
+    a. English = 1
+    b. Spanish = 0
+- Text type ⨉ Language:
+    a. Type 1 ⨉ English = 1⨉1 = 1
+    b. Type 2 ⨉ English = 0⨉1 = 0
+    c. Type 1 ⨉ Spanish = 1⨉0 = 0
+    d. Type 2 ⨉ Spanish = 0⨉1 = 0
+
+![SPSS parameter estimates for a model of the same data with baseline coding.](images/spss_parameter_estimates_baseline.png)
+
+##Remember about the following
+
+1. Normal residuals
+2. Homoskedasticity
+3. Independence of observations
+4. Multicollinearity and lack of balance

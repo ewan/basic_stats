@@ -14,4 +14,45 @@ e m d   @   u m d  .  e d u
 
 [Back to main course page](index.html)
 
-No content here yet.
+This section is about the relation between the ANOVA tests and the regression tests.
+
+##Analysis of variance
+
+Fitting a linear model in SPSS using GLM will give us the following table first:
+
+![SPSS ANOVA table.](images/spss_anova_table.png)
+
+This is a list of five significance tests. The test statistic is listed under F because it follows an F distribution under the various null hypotheses. Let's go through line by line, starting with the interaction term. This test statistic has two parts. It starts like this:
+
+- For each of the four conditions:
+    - Take the estimated condition mean 
+    - Subtract the estimated condition effect for that value of text_type
+    - Subtract the estimated condition effect for that value of language
+    - Subtract the estimated grand mean
+    - Square it
+    - Multiply by the number of observations
+- Sum all these
+- In general, divide by the number of levels of text_type minus one, times the number of levels of language minus one, but here that works out to one
+
+Before we divide, this is called a sum of squares; afterwards, it's called a mean square. Intuitively, this number takes all the (squared) deviations from the predictions of a purely linear model. If there is any interaction then this seems like a reasonable way to measure it.
+
+The null hypothesis here would be that there is no interaction. If that were the case, then this quantity should be indistinguishable from random noise. That theory would indeed predict the possibility of small deviations from the purely linear model, but deviations consistent with the noise that's summarized by the "residual sum of squares": 
+
+- For each of the data points:
+    - Subtract the estimated interaction for the given value of text_type and language
+    - Subtract the estimated condition effect for that value of text_type
+    - Subtract the estimated condition effect for that value of language
+    - Subtract the estimated grand mean
+    - Square it
+- Sum all these
+- Divide by the number of observations minus the number of coefficients in the model
+
+After we divide, the residual sum of squares becomes the mean squared error. It turns out that the null hypothesis makes clean predictions about the quantity **interaction mean square divided by the mean squared error**; this is predicted to follow an F distribution, if they're really both both drawn from the same pool of noise.
+
+Now let's have a look at the other lines, which should make more sense now. There are two lines corresponding to the main effects. These each correspond to some mean square divided by the mean squared error. In fact, they each test for a different effect in the model being different from zero. That these are "Type III sums of squares" means that they subtract out the effect of the interaction term; the test is simply against the null hypothesis that the main effect is zero.  Similarly, the term for the intercept tests against the null hypothesis that the group mean is zero.
+
+However, what's important to notice here is that these tests are really testing exactly the same thing as we get in the parameter estimate output. In fact, the F statistics here are literally just the square of the t statistics for the regression. 
+
+There is one case where they're not the same, and that's in the case where you have more than two levels for a predictor. If we look at the ANOVA table for the full text rating experiment, which had four text types and three languages, we see that, in fact, all of the tests on the model (text_type, language, and interaction) are omnibus tests: they ask whether **any** level of these variables was different from zero. Such a question obviously can't be predicated over one individual regression coefficient.
+
+![SPSS ANOVA with omnibus tests.](images/spss_anova_omnibus.png)

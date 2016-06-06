@@ -25,21 +25,14 @@ to recognize clear signs that they are inappropriate.
 We will use SPSS. It may be helpful to come with a laptop with SPSS
 23 or higher installed, but it is not strictly necessary. 
 
-####**Time and place**
-TBA
-
 ###**Topics**
 
-[Model evaluation](model_evaluation.html)
+[Statistical tests](model_evaluation.html)
 
-[Regression with categorical predictors](regression_categorical.html)
+[Linear models](regression_categorical.html)
 
 [Regression and ANOVA](regression_anova.html)
 
-[Logistic and Poisson regression](logistic_regression.html)
+[Logistic regression](logistic_regression.html)
 
 [Random effects](random_effects.html)
-
-[Automation](automation.html)
-
-[Power and model building](power.html)
