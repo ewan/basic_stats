@@ -76,7 +76,7 @@ Our binary question corresponds to two competing theories (just meaning "concept
 1. Type 1 and Type 2 elicit the same kinds of ratings
 2. Type 1 and Type 2 elicit systematically different kinds of ratings
 
-At this point, you expect me to say that, in these cases, we use a t-test and show you, in case you forgot, how to run a t-test. That's pretty much right (although in fact a t-test rests on a more specific notion of "same" than what's  implied here). But that's not what we're here for right now. We're here to remind ourselves of the fundamentals of statistics.
+At this point, you expect me to say that, in these cases, we use a t-test. Yes, but that's not what we're here for right now. We're here to remind ourselves of the fundamentals of statistics.
 
 Though, to get it out of the way, let's show a t-test in SPSS.
 
@@ -422,7 +422,7 @@ ggplot(p_stats_norm_a_melted, aes(x=crit, colour=stat, y=value)) +
   emd_theme(text_size=12) 
 ```
 
-Now - let's look at some experiments where we supposed, under both theories, that we had data that we required to be very, very similar to this data set (similar to a bootstrap, but with a bit of smoothing).
+Now - let's look at some experiments where we supposed, under both theories, that we had data that we required to be very, very similar to this data set (a bootstrap).
 
 ```{r plot-amds-dns-a, echo=F}
 with(fs_stats_bootstrap_a,
@@ -445,8 +445,8 @@ ggplot(p_stats_boot_melted, aes(x=crit, colour=stat, y=value)) +
   emd_theme(text_size=12) 
 ```
 
-
-More to the point: **the false positive rate of a test is only right if the assumptions about the data are right.**
+We can see that, to guarantee a false positive rate of 0.05, the statistic needs to be a lot larger.
+More to the point: **the false positive rate of a test is only right if the assumptions about the data are right**; using an incorrect model will distort false positive rate (and for that matter true positive rate).
 
 ##Significance tests
 

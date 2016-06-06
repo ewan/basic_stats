@@ -1,5 +1,29 @@
+tstat <- function(x1, x2) {
+  n1 <- length(x1)
+  n2 <- length(x2)
+  denom <- sqrt((n1-1)*var(x1)/(n1^2) + (n2-1)*var(x2)/(n2^2))
+  return(meandiff(x1, x2)/denom)
+}
+
+abststat <- function(x1, x2) abs(tstat(x1, x2))
+
+tstat_by <- function(x, group) {
+  group <- factor(group)
+  return(tstat(x[group==levels(group)[1]],x[group==levels(group)[2]]))
+}
+
+abststat_by <- function(x, group) {
+  group <- factor(group)
+  return(abststat(x[group==levels(group)[1]],x[group==levels(group)[2]]))
+}
+
 meandiff <- function(x1, x2) {
   return(mean(x1)-mean(x2))
+}
+
+meandiff_by <- function(x, group) {
+  group <- factor(group)
+  return(meandiff(x[group==levels(group)[1]],x[group==levels(group)[2]]))
 }
 
 absmeandiff <- function(x1, x2) {

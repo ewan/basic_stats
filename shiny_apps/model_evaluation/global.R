@@ -1,0 +1,1 @@
+tr_simple <- read.csv("data/text_ratings/text_ratings_simple.csv")
