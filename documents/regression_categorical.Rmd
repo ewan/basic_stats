@@ -22,11 +22,11 @@ e m d   @   u m d  .  e d u
 
 This section is about linear models.
 
-[Link to the 2x2 version of the text rating data (password protected)](data/parody_q1_2x2.zsav)
+[Link to the 2x2 version of the text rating data (password protected)](parody_q1_2x2.zsav)
 
-[Link to the full version of the text rating data (password protected)](data/parody_q1.zsav)
+[Link to the full version of the text rating data (password protected)](parody_q1.zsav)
 
-[Link to the implicatures experiment 1 data (password protected)](data/implicatures_exp1.zsav)
+[Link to the implicatures experiment 1 data (password protected)](implicatures_exp1.zsav)
 
 ##Back to the text rating data
 

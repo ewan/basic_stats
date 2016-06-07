@@ -14,8 +14,8 @@ e m d   @   u m d  .  e d u
 
 This two day course will cover the basics of applied statistics.
 By the end, you will understand what the standard regression and
-ANOVA models are doing, including logistic and Poisson regression and mixed
-effects models. You will know how to interpret all of the output, 
+ANOVA models are doing, including logistic regression and mixed
+effects models. You will know how to interpret the output, 
 and will be able to transfer this knowledge from the
 output of one statistical package to another. You will know roughly
 when each of these techniques is appropriate, and you will know how
@@ -33,6 +33,32 @@ We will use SPSS. It may be helpful to come with a laptop with SPSS
 
 [Regression and ANOVA](regression_anova.html)
 
-[Logistic regression](logistic_regression.html)
+###**Data**
 
-[Random effects](random_effects.html)
+[Link to the simulated text rating data](text_ratings_simple.zsav)
+
+[Link to the two group text rating data (password protected)](parody_2groups.zsav)
+
+[Link to the 2x2 version of the text rating data (password protected)](parody_q1_2x2.zsav)
+
+[Link to the full version of the text rating data (password protected)](parody_q1.zsav)
+
+[Link to the implicatures experiment 1 data (password protected)](implicatures_exp1.zsav)
+
+[Link to the control data in the adjunct control condition (password protected)](control_adult_adjunct.zsav)
+
+[Link to the control data in the obligatory control condition (password protected)](control_adult_obligatory.zsav)
+
+[Link to the control data for all conditions together (password protected)](control_adult_obligatory.zsav)
+
+[Link to the Spanish coreference data (password protected)](coref.zsav)
+
+###**Useful links**
+
+[Link to the interactive document](http://ewan.shinyapps.io/model_evaluation/)
+
+[About different contrast coding methods](http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm)
+
+[Interpreting odds ratios](http://www.ats.ucla.edu/stat/spss/faq/oratio.htm)
+
+[Power calculators](http://psych.wisc.edu/henriques/power.html)
